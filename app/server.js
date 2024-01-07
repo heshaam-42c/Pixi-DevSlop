@@ -58,6 +58,52 @@ mongo.connect(dbname, function(err, db) {
 
 
 // functions
+//Copilot generated response filter
+function filterProperties(req, res, next) {
+	var oldSend = res.send;
+
+	res.send = function(data) {
+		var response = JSON.parse(data);
+
+		response = response.map(user => {
+			return {
+				_id: user._id,
+				pic: user.pic,
+				email: user.email,
+				name: user.name,
+				account_balance: user.account_balance
+			};
+		});
+
+		oldSend.call(res, JSON.stringify(response));
+	}
+
+	next();
+}
+
+//Copilot generated admin auth check
+function isAdmin(req, res, next) {
+	if (!req.user.user._id) {
+		res.status(422).json({message: "missing userid"})
+	}
+	else {
+		console.log('user id ' + req.user.user._id);
+		mongo.connect(dbname, function(err, db){
+			db.collection('users').find( { _id : req.user.user._id }).toArray(function(err, users){
+				if (err) { return err }
+				if(users) {
+					// check if the user is an admin
+					if (users[0].is_admin) {
+						next();
+					} else {
+						res.status(403).json({message: "User is not an admin"});
+					}
+				}
+			})
+		});
+	}
+}
+
 function api_authenticate(user, pass, req, res){
 	mongo.connect(dbname, function(err, db){
 		 		  //Logger.setLevel('debug');
@@ -526,12 +572,19 @@ api.post('/api/picture/upload', api_token_check, upload.single('file'), function
 
 
 // user related.
+//Copilot - can you validate that the user property is a valid email?
 api.post('/api/user/login', function(req, res){
 	if ((!req.body.user) || (!req.body.pass)) {
-		res.status(422).json({message: "missing username and or password parameters"});
+		res.status(422).json({message: "missing email and or password parameters"});
 	}
 	else {
-	api_authenticate(req.body.user, req.body.pass, req, res);
+		// Add input validation for 'user' as email
+		var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Email validation
+		if (!emailRegex.test(req.body.user)) {
+			res.status(422).json({message: "invalid email"});
+		} else {
+			api_authenticate(req.body.user, req.body.pass, req, res);
+		}
 	}
 })
 
@@ -671,8 +724,9 @@ api.get('/about', function(req, res){
 });
 
 
-
-api.get('/api/admin/all_users', api_token_check, function(req, res){
+//Copilot - can you ensure the only properties returned by /api/admin/all_users are _id, pic, email, name, and account_balance?
+//Copilot - i want to add an authorization check on /api/admin/all_users using /api/user/info to check if the is_admin property is true
+api.get('/api/admin/all_users', api_token_check, isAdmin, filterProperties, function(req, res){
 	//res.json(req.user);
 
 	mongo.connect(dbname, function(err, db){
