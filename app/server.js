@@ -527,6 +527,13 @@ api.post('/api/picture/upload', api_token_check, upload.single('file'), function
 
 // user related.
 api.post('/api/user/login', function(req, res){
+	var email = req.body.user;
+	var emailRegex = /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/;
+
+	if (!emailRegex.test(email)) {
+		return res.status(400).json({ error: 'Invalid email format' });
+	}
+
 	if ((!req.body.user) || (!req.body.pass)) {
 		res.status(422).json({message: "missing username and or password parameters"});
 	}
@@ -671,11 +678,22 @@ api.get('/about', function(req, res){
 });
 
 
-api.get('/api/admin/all_users', api_token_check, function(req, res){
-	//res.json(req.user);
-
+function admin_check(req, res, next) {
 	mongo.connect(dbname, function(err, db){
-		db.collection('users').find().toArray(function(err, all_users){
+		db.collection('users').findOne({ _id : req.user.user._id}, function(err, user){
+			if(err) { return res.status(500).json({ error: err }); }
+			if(user && user.is_admin) {
+				next();
+			} else {
+				res.status(403).json({ error: 'User is not an admin' });
+			}
+		});
+	});
+}
+
+api.get('/api/admin/all_users', api_token_check, admin_check, function(req, res){
+	mongo.connect(dbname, function(err, db){
+		db.collection('users').find({}, { password: 0, _id: 0, otherSensitiveField: 0 }).toArray(function(err, all_users){
 			if (err) { return err }
 			if(all_users) {
 				res.json(all_users);
