@@ -77,7 +77,7 @@ function api_authenticate(user, pass, req, res){
 					//BIG VULNERABILITY
        				var payload = { user };
        				var token = jwt.sign(payload, config.session_secret);
-       				res.json({message: "Token is a header JWT ", token: token});
+       				res.json({message: "Token is a header JWT ", token: token, _id: result._id});
 				}
 
 			
@@ -137,7 +137,7 @@ function api_register(user, pass, req, res){
 			       					var payload = { user };
 				       				//payload = { payload }
 				       				var token = jwt.sign(payload, config.session_secret);
-				       				res.status(200).json({message: "x-access-token: ", token: token});
+				       				res.status(200).json({message: "x-access-token: ", token: token, _id: doc.value.seq});
 
 		       					} //if user
 
